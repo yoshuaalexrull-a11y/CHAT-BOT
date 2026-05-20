@@ -1,92 +1,100 @@
-# Sistema Multiagente MCP - Veltri Tecnologic
+# Sistema Multiagente MCP - Veltri Tecnologic (Asesor de Ventas y Soporte)
 
 ## Descripcion del Proyecto
 
-Sistema de orquestacion multiagente basado en la arquitectura **Swarm** con delegacion jerarquica, desarrollado para **Veltri Tecnologic**. El sistema automatiza la atencion al cliente para venta de componentes de hardware (tarjetas graficas RTX 4060), utilizando el **Model Context Protocol (MCP)** para la comunicacion estructurada entre agentes.
+Sistema de orquestacion multiagente basado en la arquitectura **Swarm** con delegacion jerarquica, desarrollado para **Veltri Tecnologic**. El sistema otorga una atencion personalizada a los clientes como un **chatbot asesor** (comercial, soporte técnico e inventario), permitiendo una atencion integral y eficiente. Utiliza el **Model Context Protocol (MCP)** para la comunicacion estructurada y validada entre agentes.
 
 ## Arquitectura del Sistema
 
 ### Diagrama de Arquitectura
 
 ```
-+----------------------------------------------------------+
-|                    ORQUESTADOR (orchestrator.py)          |
-|                                                          |
-|   +--------------------------------------------------+   |
-|   |              Motor Swarm con Gemini              |   |
-|   |   - Reintentos automaticos (backoff exponencial) |   |
-|   |   - Tracking de metricas por llamada             |   |
-|   |   - Historial conversacional preservado          |   |
-|   +--------------------------------------------------+   |
-|                          |                               |
-|            +-------------+-------------+                 |
-|            |                           |                 |
-|   +--------v--------+       +---------v---------+       |
-|   |  AGENTE VENTAS  |       | ESPECIALISTA      |       |
-|   |  (Sub-agente 1) |  MCP  | TECNICO           |       |
-|   |                 +------>+ (Sub-agente 2)     |       |
-|   | - Atencion      | JSON  |                   |       |
-|   | - Presupuestos  | Schema| - Compatibilidad  |       |
-|   | - Recomendacion | Valid.| - Rendimiento     |       |
-|   +-----------------+       | - Especificaciones|       |
-|                             +-------------------+       |
-+----------------------------------------------------------+
-                         |
-              +----------v----------+
-              |   Gemini 2.0 Flash  |
-              |   (API de Google)   |
-              +---------------------+
++-------------------------------------------------------------+
+|                     ORQUESTADOR (orchestrator.py)           |
+|                                                             |
+|   +-----------------------------------------------------+   |
+|   |             Motor Swarm con Gemini (settings.py)    |   |
+|   |   - Reintentos automaticos (backoff exponencial)    |   |
+|   |   - Tracking de metricas y latencia (metrics.py)    |   |
+|   |   - Historial conversacional preservado             |   |
+|   +-----------------------------------------------------+   |
+|                            |                                |
+|            +---------------+---------------+                |
+|            |               |               |                |
+|   +--------v--------+ +----v----+ +--------v--------+       |
+|   |  AGENTE VENTAS  | | TECNICO | |   INVENTARIO    |       |
+|   |  (Sub-agente 1) | | (Sub-2) | |   (Sub-agente 3) |       |
+|   |                 | |         | |                 |       |
+|   | - Asesoría      | | - Cuello| | - Disponibilidad|       |
+|   | - Presupuestos  | |   botella | - Garantías     |       |
+|   | - Recomendación | | - Watts | | - Marcas        |       |
+|   +-----------------+ +---------+ +-----------------+       |
+|            ^               ^               ^                |
+|            |               |               |                |
+|            +---------------+---------------+                |
+|                            | MCP JSON State                 |
+|                            v                                |
+|                    [Memoria Compartida]                     |
+|                    [Bus de Eventos    ]                     |
++-------------------------------------------------------------+
 ```
 
-### Topologia: Delegacion Jerarquica (Swarm)
+### Topologia: Grafo de Agentes (Agent Graph)
 
-Se eligio la topologia **jerarquica tipo Swarm** porque:
-
-1. **Flujo natural del dominio**: En una tienda de tecnologia, el vendedor atiende primero y escala al tecnico solo cuando es necesario.
-2. **Eficiencia de recursos**: El especialista tecnico solo se activa bajo demanda, minimizando tokens consumidos.
-3. **Separacion de responsabilidades**: Cada agente tiene un dominio claro sin solapamiento.
+Se define la topología de interacción mediante un grafo rígido que limita las delegaciones:
+1. `agente_ventas` $\rightarrow$ `especialista_tecnico`: Cuando se detectan dudas sobre watts, overclocking o cuello de botella.
+2. `agente_ventas` $\rightarrow$ `agente_inventario`: Cuando se indaga sobre stock disponible, marcas en tienda o políticas de garantía.
+3. Ambos sub-agentes devuelven el control al `agente_ventas` una vez resuelta la consulta específica.
 
 ### Roles de los Agentes
 
-| Agente | Responsabilidad | Cuando actua |
+| Agente | Responsabilidad | Cuando actúa |
 |--------|----------------|--------------|
-| `agente_ventas` | Atencion comercial, presupuestos, recomendaciones de productos | Siempre (punto de entrada) |
-| `especialista_tecnico` | Compatibilidad de hardware, voltajes, cuellos de botella, especificaciones | Solo por escalamiento via MCP |
-| `orquestador` | Coordinacion, deteccion de escalamiento, metricas, transferencia MCP | Permanente (controla el flujo) |
+| `agente_ventas` | Atención comercial, presupuestos, recomendaciones de productos | Punto de entrada (predeterminado) |
+| `especialista_tecnico` | Compatibilidad de hardware, voltajes, cuellos de botella, especificaciones | Escalamiento ante consultas técnicas avanzadas |
+| `agente_inventario` | Disponibilidad física, marcas disponibles, garantías y tiempos de entrega | Escalamiento ante consultas de disponibilidad y logística |
+
+---
+
+## Componentes de la Arquitectura (Antigravity)
+
+* **Grafo de Agentes (`core/agent_graph.py`)**: Define los nodos y las transiciones válidas.
+* **Memoria Compartida (`core/memory.py`)**: Almacena variables de consulta (perfil de cliente, marcas, garantías) conservando el estado entre handoffs.
+* **Bus de Eventos (`core/event_bus.py`)**: Utiliza el patrón Pub-Sub para reaccionar a eventos conversacionales (`mensaje_usuario`, `handoff_agente`, `stock_exitoso`).
+* **Base de Datos SQLite (`core/database.py`)**: Gestiona la inicialización de `veltri_shop.db` e inyecta información real de stock, marcas y precios en las consultas del Asesor de Inventario.
+
+---
 
 ## Protocolo MCP (Model Context Protocol)
 
-La comunicacion entre agentes usa payloads JSON validados contra un esquema:
+La comunicación usa payloads JSON validados contra un esquema que incluye un algoritmo de **Resolución de Conflictos** (`resolver_conflictos_mcp`):
 
 ```json
 {
   "protocolo_mcp": "Activo",
   "version": "1.0",
-  "timestamp": "2026-05-16T16:58:36",
+  "timestamp": "2026-05-20T04:30:12",
   "datos_sesion": {
-    "perfil_cliente": "Extraido del contexto conversacional",
-    "estado_conversacion": "Transferencia por duda tecnica",
-    "datos_adicionales": "...",
-    "historial_preservado": "..."
+    "cliente_perfil": {
+      "presupuesto": 3500.0,
+      "preferencias": ["Gaming"]
+    },
+    "consulta_stock": {
+      "producto_interes": "RTX 4060",
+      "marca_preferida": "ASUS",
+      "stock_confirmado": true
+    }
   },
   "resolucion_conflictos": {
     "estrategia": "Priorizar_estabilidad_hardware",
     "fallback": "Consultar_catalogo_compatible",
-    "timeout_segundos": 30
-  },
-  "metricas_transferencia": {
-    "agente_origen": "agente_ventas",
-    "agente_destino": "especialista_tecnico",
-    "motivo_escalamiento": "..."
+    "timeout_segundos": 30,
+    "conflictos_detectados": []
   }
 }
 ```
 
-### Caracteristicas del MCP:
-- **Validacion de esquema** antes de cada transferencia
-- **Historial preservado** entre turnos y agentes
-- **Resolucion de conflictos** con estrategia definida y fallback
-- **Metricas de transferencia** integradas en el payload
+---
 
 ## Requisitos Previos
 
@@ -94,79 +102,34 @@ La comunicacion entre agentes usa payloads JSON validados contra un esquema:
 - **pip** (gestor de paquetes de Python)
 - **API Key de Google Gemini** (gratuita en [Google AI Studio](https://aistudio.google.com/apikey))
 
-## Instalacion Paso a Paso
+## Instalacion y Ejecución
 
-### 1. Clonar o descargar el proyecto
-
-```bash
-git clone <url-del-repositorio>
-cd Veltri_Multiagente
-```
-
-### 2. Instalar dependencias
-
+### 1. Instalar dependencias
 ```bash
 pip install google-generativeai pyyaml
 ```
 
-### 3. Configurar la API Key
-
-**Windows PowerShell:**
+### 2. Configurar la API Key (PowerShell / Windows CMD)
 ```powershell
 $env:GEMINI_API_KEY="tu_api_key_aqui"
 ```
-
-**Windows CMD:**
 ```cmd
 set GEMINI_API_KEY=tu_api_key_aqui
 ```
 
-**Linux/macOS:**
-```bash
-export GEMINI_API_KEY="tu_api_key_aqui"
-```
-
-### 4. Ejecutar el orquestador
-
+### 3. Ejecutar el chatbot
 ```bash
 python orchestrator.py
 ```
 
-## Estructura del Proyecto
+---
 
-```
-Veltri_Multiagente/
-|-- orchestrator.py      # Orquestador principal con motor Swarm
-|-- subagents.yaml       # Configuracion de roles y directivas de agentes
-|-- task_plan.md         # Plan de tareas del proceso TO-BE
-|-- README.md            # Documentacion tecnica (este archivo)
-```
+## Casos de Prueba Automatizados
 
-## Casos de Prueba
-
-| # | Caso | Descripcion | Objetivo |
-|---|------|-------------|----------|
-| 1 | Flujo normal | Cliente pide armar PC con presupuesto | Verificar embudo de ventas |
-| 2 | Adversarial | Inyeccion de prompt pidiendo 100% descuento | Evaluar resistencia a manipulacion |
-| 3 | Delegacion MCP | Pregunta tecnica sobre cuello de botella | Verificar handoff Swarm y MCP |
-| 4 | Edge case | Consulta fuera de dominio (matematicas) | Verificar limites del agente |
-
-## Metricas Reportadas
-
-El sistema reporta automaticamente al finalizar:
-
-- **Tiempo total de ejecucion** (segundos)
-- **Tokens totales consumidos**
-- **Llamadas totales al modelo**
-- **Latencia promedio, minima y maxima** por llamada
-- **Tasa de exito** (porcentaje de pruebas exitosas)
-- **Resultado individual** por cada caso de prueba (PASS/FAIL)
-
-## Tecnologias Utilizadas
-
-- **Google Gemini 2.0 Flash** - Modelo de lenguaje para generacion de respuestas
-- **Swarm (patron arquitectonico)** - Delegacion jerarquica entre agentes
-- **MCP (Model Context Protocol)** - Comunicacion estructurada via JSON
-- **Python 3.12** - Lenguaje de implementacion
-- **YAML** - Configuracion declarativa de agentes
-- **Claude Code / Antigravity** - Herramienta de desarrollo asistido por IA
+| # | Caso | Entrada del Cliente | Objetivo del Test |
+|---|------|---------------------|-------------------|
+| 1 | Flujo comercial | Presupuesto y juegos de interés | Evaluar recomendación y guardado en memoria |
+| 2 | Adversarial | Inyección de prompt (100% descuento) | Evaluar robustez ante manipulaciones de prompt |
+| 3 | Handoff Técnico | Cuello de botella e i3 antiguo | Probar handoff MCP a especialista de soporte |
+| 4 | Handoff Inventario | Stock disponible, marcas y garantía | Probar handoff MCP al asesor de almacén |
+| 5 | Fuera de dominio | Ayuda con tarea de integrales | Evaluar filtrado de consultas externas |
