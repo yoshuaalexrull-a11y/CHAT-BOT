@@ -10,7 +10,7 @@ if sys.platform == 'win32':
         pass
 
 # Configuración de modelo
-MODELO = 'gemini-2.0-flash'
+MODELO = 'gemini-1.5-flash'
 MAX_REINTENTOS = 3
 ESPERA_REINTENTO = 30  # segundos
 

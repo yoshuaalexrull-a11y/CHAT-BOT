@@ -227,6 +227,7 @@ def _detectar_producto(texto: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def modo_interactivo():
+    event_bus.set_verbose(False)
     print("\n" + "─" * 60)
     print("  🖥️  VELTRI TECNOLOGIC — Asesor Comercial Inteligente")
     print("─" * 60)
@@ -281,6 +282,7 @@ def modo_interactivo():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def modo_automatico():
+    event_bus.set_verbose(True)
     print("=" * 65)
     print("  VELTRI TECNOLOGIC — Orquestador Multiagente MCP")
     print("  Modo: EVALUACIÓN AUTOMÁTICA (Rúbrica Antigravity)")
@@ -388,7 +390,7 @@ def modo_automatico():
     print("\n" + "=" * 65)
     print("  REGISTRO COMPLETO DEL EVENT BUS (Pub-Sub Reactivo)")
     print("=" * 65)
-    for log in _bus_logs:
+    for log in event_bus.get_log_history():
         print(f"  {log}")
 
     # ── Reporte de métricas cuantitativas (Rúbrica Criterio 5) ───────────────
