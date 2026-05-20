@@ -38,8 +38,13 @@ from protocols import (
 try:
     configurar_gemini()
 except ValueError as e:
-    print(e)
-    sys.exit(1)
+    # En modo terminal, esto termina el proceso. En modo Streamlit/API, se captura como excepción.
+    if __name__ == "__main__":
+        print(e)
+        sys.exit(1)
+    else:
+        raise RuntimeError(str(e)) from e
+
 
 shared_memory   = SharedMemory()
 event_bus       = EventBus()
@@ -75,8 +80,12 @@ try:
     tech_agent    = Agent(name="especialista_tecnico", instructions=_by_name["especialista_tecnico"]["directive"])
     inv_agent     = Agent(name="agente_inventario",    instructions=_by_name["agente_inventario"]["directive"])
 except Exception as e:
-    print(f"Error cargando subagents.yaml: {e}")
-    sys.exit(1)
+    if __name__ == "__main__":
+        print(f"Error cargando subagents.yaml: {e}")
+        sys.exit(1)
+    else:
+        raise RuntimeError(f"Error cargando subagents.yaml: {e}") from e
+
 
 # ─── Grafo de Agentes (Rúbrica Criterio 1) ───────────────────────────────────
 
@@ -401,12 +410,64 @@ def modo_automatico():
 # Menú principal
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# API pública para Streamlit (y cualquier otra interfaz)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def procesar_mensaje(user_input: str, messages: list) -> dict:
+    """
+    Procesa un mensaje del usuario con Valeria como único agente.
+    Inyecta contexto de BD automáticamente cuando hay consultas de stock/precios.
+
+    Retorna:
+    {
+        "agent_name": "Valeria",
+        "reply":      "<respuesta de Valeria>",
+        "handoffs":   []   # siempre vacío — solo Valeria
+    }
+    """
+    event_bus.publish("mensaje_usuario", {"content": user_input})
+
+    # ── Enriquecer el mensaje con datos de BD si es consulta de inventario ──
+    mensaje_enriquecido = user_input
+    if necesita_inventario(user_input):
+        busqueda      = _detectar_producto(user_input)
+        catalogo_txt  = db_manager.obtener_catalogo_texto(busqueda, verbose=False)
+        mensaje_enriquecido = (
+            f"{user_input}\n\n"
+            f"[DATOS DEL SISTEMA — usa esto para responder]\n{catalogo_txt}"
+        )
+
+    messages.append({"role": "user", "content": mensaje_enriquecido})
+
+    # ── Única llamada: Valeria responde todo ────────────────────────────────
+    _, reply = run_swarm_gemini(sales_agent, messages, metrics_tracker, event_bus, verbose=False)
+    messages.append({"role": "assistant", "content": reply})
+
+    return {
+        "agent_name": "Valeria",
+        "reply":      reply,
+        "handoffs":   [],
+    }
+
+
+
+def obtener_metricas() -> dict:
+    """Retorna las métricas actuales del sistema para mostrar en el frontend."""
+    return metrics_tracker.to_dict() if hasattr(metrics_tracker, "to_dict") else {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Menú principal (modo terminal — sigue funcionando igual)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def main():
     print("\n" + "=" * 60)
     print("     VELTRI TECNOLOGIC — Sistema Multiagente Swarm + MCP")
     print("=" * 60)
     print("  [1] Chat con el Asesor Comercial  (modo cliente)")
-    print("  [2] Ejecutar pruebas de evaluación (modo docente)")
+    print("  [2] Ejecutar pruebas de evaluación (modo simulación)")
     print("")
 
     try:
