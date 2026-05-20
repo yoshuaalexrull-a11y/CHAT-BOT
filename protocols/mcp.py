@@ -63,11 +63,9 @@ def generar_payload_mcp(agente_origen: str, agente_destino: str, motivo: str,
     }
     return estado_compartido_mcp
 
-def resolver_conflictos_mcp(payload: dict) -> dict:
+def resolver_conflictos_mcp(payload: dict, verbose: bool = True) -> dict:
     """
     Algoritmo de resolución de conflictos de estado en el payload de transferencia.
-    Si se detectan inconsistencias (ej. garantía informada sin especificar producto, 
-    o entrega coordinada sin stock confirmado), se aplican políticas correctoras.
     """
     datos_sesion = payload.get("datos_sesion", {})
     consulta_stock = datos_sesion.get("consulta_stock", {})
@@ -90,37 +88,34 @@ def resolver_conflictos_mcp(payload: dict) -> dict:
 
     payload["resolucion_conflictos"]["conflictos_detectados"] = conflictos
     
-    if conflictos:
+    if conflictos and verbose:
         print(f"  [MCP CONFLICT RESOLUTION] Conflictos detectados y resueltos: {conflictos}")
-    else:
-        print("  [MCP CONFLICT RESOLUTION] No se detectaron conflictos de estado. Estado íntegro.")
         
     return payload
 
-def mostrar_transferencia_mcp(payload: dict) -> bool:
+def mostrar_transferencia_mcp(payload: dict, verbose: bool = True) -> bool:
     """Muestra en consola el proceso de transferencia MCP con validacion y resolucion de conflictos."""
-    print("\n" + "=" * 65)
-    print("  [Sistema MCP]: Iniciando transferencia jerarquica...")
-    print("  [Sistema MCP]: Validando payload contra esquema MCP...")
-
     es_valido = validar_payload_mcp(payload)
-    estado = "VALIDADO" if es_valido else "ERROR DE VALIDACION"
-    print(f"  [Sistema MCP]: Estado del payload preliminar: {estado}")
 
     if es_valido:
         # Resolver conflictos
-        payload = resolver_conflictos_mcp(payload)
+        payload = resolver_conflictos_mcp(payload, verbose)
 
-    print("  [Sistema MCP]: Payload JSON final transmitido:")
-    print("=" * 65)
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
-    print("=" * 65)
-
-    if es_valido:
-        print("  [Sistema MCP]: Estado compartido transferido con exito.")
-    else:
-        print("  [Sistema MCP]: ADVERTENCIA - Transferencia con errores en estructura de datos.")
-    print("=" * 65 + "\n")
+    if verbose:
+        print("\n" + "=" * 65)
+        print("  [Sistema MCP]: Iniciando transferencia jerarquica...")
+        print("  [Sistema MCP]: Validando payload contra esquema MCP...")
+        estado = "VALIDADO" if es_valido else "ERROR DE VALIDACION"
+        print(f"  [Sistema MCP]: Estado del payload preliminar: {estado}")
+        print("  [Sistema MCP]: Payload JSON final transmitido:")
+        print("=" * 65)
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        print("=" * 65)
+        if es_valido:
+            print("  [Sistema MCP]: Estado compartido transferido con exito.")
+        else:
+            print("  [Sistema MCP]: ADVERTENCIA - Transferencia con errores en estructura de datos.")
+        print("=" * 65 + "\n")
     return es_valido
 
 def necesita_escalamiento(respuesta: str) -> bool:

@@ -25,6 +25,9 @@ except ValueError as e:
     print(e)
     sys.exit(1)
 
+#  Estado de Evaluación para controlar la verbosidad de consola
+MODO_EVALUACION = False
+
 #  Inicialización de Componentes de Arquitectura (Rubrica Criterio 2)
 shared_memory = SharedMemory()
 event_bus = EventBus()
@@ -33,18 +36,21 @@ db_manager = DatabaseManager()
 
 #  Suscripción de Event Listeners (Event Bus Reactivo)
 def on_user_message(data):
-    print(f"  [EVENT BUS] Suscriptor 'Logger' detectó nuevo mensaje del usuario: \"{data['content'][:60]}...\"")
+    if MODO_EVALUACION:
+        print(f"  [EVENT BUS] Suscriptor 'Logger' detectó nuevo mensaje del usuario: \"{data['content'][:60]}...\"")
 
 def on_handoff(data):
-    print(f"  [EVENT BUS] Suscriptor 'Orquestador' registró handoff:")
-    print(f"               Origen : [{data['origen']}]")
-    print(f"               Destino: [{data['destino']}]")
-    print(f"               Motivo : \"{data['motivo']}\"")
+    if MODO_EVALUACION:
+        print(f"  [EVENT BUS] Suscriptor 'Orquestador' registró handoff:")
+        print(f"               Origen : [{data['origen']}]")
+        print(f"               Destino: [{data['destino']}]")
+        print(f"               Motivo : \"{data['motivo']}\"")
 
 def on_stock_success(data):
-    print(f"  [EVENT BUS] Suscriptor 'Inventario' recibió confirmación de consulta.")
-    print(f"               Producto: {data['producto']}")
-    print(f"               Estado  : STOCK Y GARANTÍA INFORMADOS CON ÉXITO")
+    if MODO_EVALUACION:
+        print(f"  [EVENT BUS] Suscriptor 'Inventario' recibió confirmación de consulta.")
+        print(f"               Producto: {data['producto']}")
+        print(f"               Estado  : STOCK Y GARANTÍA INFORMADOS CON ÉXITO")
 
 event_bus.subscribe("mensaje_usuario", on_user_message)
 event_bus.subscribe("handoff_agente", on_handoff)
@@ -86,18 +92,15 @@ agent_graph.add_transition("agente_inventario", "agente_ventas", "Consulta de in
 
 def modo_interactivo():
     """Modo chat interactivo donde el usuario conversa en tiempo real."""
-    print("=" * 65)
-    print("  Veltri Tecnologic - Chat de Atencion al Cliente")
-    print("  Arquitectura: Swarm Híbrido + Grafo de Agentes (Antigravity)")
-    print("  Componentes: Event Bus, Memoria Compartida, SQL DB, MCP Handoff")
-    print("  Modelo: " + MODELO)
-    print("=" * 65)
-    print("  Escribe tu mensaje para hablar con nuestro asesor.")
-    print("  Comandos: 'salir' para terminar | 'metricas' para ver stats | 'grafo' para topología")
-    print("=" * 65 + "\n")
+    global MODO_EVALUACION
+    MODO_EVALUACION = False
 
-    # Mostrar la topología del grafo al iniciar
-    agent_graph.print_topology()
+    print("=" * 65)
+    print("           VELTRI TECNOLOGIC - Asesor Comercial Inteligente")
+    print("=" * 65)
+    print("  Hola! Bienvenido a Veltri. Estoy listo para ayudarte con tu compra.")
+    print("  Escribe 'salir' para terminar o 'metricas' para ver estadísticas.")
+    print("=" * 65 + "\n")
 
     messages = []
     active_agent = sales_agent
@@ -105,16 +108,16 @@ def modo_interactivo():
 
     while True:
         try:
-            user_input = input(f"\n  Tu: ").strip()
+            user_input = input(f"\nTú: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n\n  Sesion finalizada. Hasta pronto!")
+            print("\n\nSesión finalizada. ¡Hasta pronto!")
             break
 
         if not user_input:
             continue
 
         if user_input.lower() == "salir":
-            print("\n  Gracias por contactar a Veltri Tecnologic. Hasta pronto!\n")
+            print("\n¡Gracias por contactar a Veltri Tecnologic! Que tengas un excelente día.\n")
             break
 
         if user_input.lower() == "metricas":
@@ -129,11 +132,11 @@ def modo_interactivo():
         event_bus.publish("mensaje_usuario", {"content": user_input})
         messages.append({"role": "user", "content": user_input})
 
-        # Obtener respuesta del agente activo
-        print(f"\n  [{active_agent.name}] pensando...", flush=True)
+        # Pensando...
+        print(f"\n[Asesor Veltri] pensando...", flush=True)
         active_agent, reply = run_swarm_gemini(active_agent, messages, metrics_tracker, event_bus)
-        print(f"\n  [{active_agent.name}]:")
-        print(f"  {reply}\n")
+        print(f"\nAsesor Veltri:")
+        print(f"{reply}\n")
         messages.append({"role": "assistant", "content": reply})
 
         # 1. EVALUAR CAMBIO: Ventas -> Técnico
@@ -146,8 +149,8 @@ def modo_interactivo():
                 shared_memory_data=shared_memory.to_dict(),
                 historial_resumen=resumen
             )
-            # Mostrar transferencia con validación y resolución de conflictos
-            mostrar_transferencia_mcp(payload)
+            # Transferencia silenciosa en modo interactivo
+            mostrar_transferencia_mcp(payload, verbose=False)
 
             # Transición en el Grafo
             agente_anterior = active_agent.name
@@ -164,10 +167,10 @@ def modo_interactivo():
             )
             messages.append({"role": "user", "content": sys_msg})
 
-            print(f"  [{active_agent.name}] analizando tu consulta...", flush=True)
+            print(f"\n[Asesor Veltri] consultando especificaciones técnicas...", flush=True)
             active_agent, tech_reply = run_swarm_gemini(active_agent, messages, metrics_tracker, event_bus)
-            print(f"\n  [{active_agent.name}]:")
-            print(f"  {tech_reply}\n")
+            print(f"\nAsesor Veltri:")
+            print(f"{tech_reply}\n")
             messages.append({"role": "assistant", "content": tech_reply})
 
             # Retornar control al comercial automáticamente después de aclarar dudas técnicas
@@ -185,8 +188,8 @@ def modo_interactivo():
                     busqueda = word
                     break
 
-            # Consultar base de datos SQLite
-            productos_encontrados = db_manager.buscar_producto(busqueda)
+            # Consultar base de datos SQLite silenciosamente
+            productos_encontrados = db_manager.buscar_producto(busqueda, verbose=False)
             db_context = "PRODUCTOS DISPONIBLES EN BASE DE DATOS SQLITE:\n"
             if productos_encontrados:
                 for p in productos_encontrados:
@@ -198,11 +201,11 @@ def modo_interactivo():
             payload = generar_payload_mcp(
                 agente_origen=active_agent.name,
                 agente_destino=inventory_agent.name,
-                motivo="Consulta sobre stock de " + busqueda + " y políticas de garantía/entrega",
+                motivo="Consulta sobre stock de " + busqueda,
                 shared_memory_data=shared_memory.to_dict(),
                 historial_resumen=resumen
             )
-            mostrar_transferencia_mcp(payload)
+            mostrar_transferencia_mcp(payload, verbose=False)
 
             # Transición en el Grafo
             agente_anterior = active_agent.name
@@ -212,7 +215,7 @@ def modo_interactivo():
 
             # Enviar contexto MCP al agente de inventario
             sys_msg = (
-                f"CONTEXTO MCP RECIBIDO: Transfiere al Asesor de Inventario para responder dudas sobre stock, marcas y garantías. "
+                f"CONTEXTO MCP RECIBIDO: Transfiere al Asesor de Inventario para responder dudas sobre stock. "
                 f"Mensaje cliente: \"{user_input}\". "
                 f"Datos reales de la Base de Datos SQL:\n{db_context}\n"
                 f"Payload MCP: {json.dumps(payload, ensure_ascii=False)}. "
@@ -220,10 +223,10 @@ def modo_interactivo():
             )
             messages.append({"role": "user", "content": sys_msg})
 
-            print(f"  [{active_agent.name}] revisando stock en SQL...", flush=True)
+            print(f"\n[Asesor Veltri] verificando stock en almacén...", flush=True)
             active_agent, inv_reply = run_swarm_gemini(active_agent, messages, metrics_tracker, event_bus)
-            print(f"\n  [{active_agent.name}]:")
-            print(f"  {inv_reply}\n")
+            print(f"\nAsesor Veltri:")
+            print(f"{inv_reply}\n")
             messages.append({"role": "assistant", "content": inv_reply})
 
             # Actualizar memoria compartida
@@ -246,14 +249,14 @@ def modo_interactivo():
             shared_memory.set_active_agent(active_agent.name)
             event_bus.publish("handoff_agente", {"origen": agente_anterior, "destino": active_agent.name, "motivo": "Consulta de Stock resuelta"})
 
-    # Mostrar metricas al salir
-    metrics_tracker.imprimir_reporte(MODELO)
 
-
-#  Modo Automatico - Pruebas predefinidas
+#  Modo Automatico - Pruebas predefinidas para el docente
 
 def modo_automatico():
-    """Ejecuta los 5 casos de prueba del chatbot con soporte SQLite y métricas."""
+    """Ejecuta los 5 casos de prueba con toda la verbosidad y logs requeridos por la rúbrica."""
+    global MODO_EVALUACION
+    MODO_EVALUACION = True
+
     print("=" * 65)
     print("  Orquestador Multiagente MCP -- Asesor Comercial Veltri")
     print("  Arquitectura: Swarm Híbrido (Graph, Memory, Event Bus, SQL)")
@@ -261,7 +264,7 @@ def modo_automatico():
     print("  Modo: PRUEBAS AUTOMATICAS Y EVALUACION DE COMPLEJIDAD")
     print("=" * 65 + "\n")
 
-    # Mostrar topologia del grafo
+    # Mostrar topologia del grafo requerida por el Criterio 1
     agent_graph.print_topology()
 
     messages = []
@@ -351,7 +354,8 @@ def modo_automatico():
             shared_memory_data=shared_memory.to_dict(),
             historial_resumen=resumen_historial
         )
-        mcp_valido = mostrar_transferencia_mcp(payload)
+        # Mostrar payload JSON completo
+        mcp_valido = mostrar_transferencia_mcp(payload, verbose=True)
 
         # Transición en el Grafo
         agente_anterior = active_agent.name
@@ -389,7 +393,7 @@ def modo_automatico():
     )
 
 
-    #  CASO DE PRUEBA 4: Consulta de stock, garantías y marcas con base de datos SQL
+    #  CASO DE PRUEBA 4: Consulta de stock, garantías y marcas con base de datos SQL y variabilidad
 
     print("-" * 65)
     print("  CASO DE PRUEBA 4: Consulta sobre disponibilidad física de Stock (Inventario - SQL)")
@@ -406,8 +410,8 @@ def modo_automatico():
 
     consulta_inventario_exitosa = False
     if pregunta_es_inventario:
-        # Consultar base de datos SQLite real
-        productos_encontrados = db_manager.buscar_producto("4060")
+        # Consultar base de datos SQLite real mostrando la variabilidad dinámica
+        productos_encontrados = db_manager.buscar_producto("4060", verbose=True)
         db_context = "PRODUCTOS DISPONIBLES EN BASE DE DATOS SQLITE:\n"
         for p in productos_encontrados:
             db_context += f"- {p[0]} (Marca: {p[2]}, Categoria: {p[1]}, Precio: S/.{p[3]}, Stock: {p[4]} unidades, Garantía: {p[5]} meses)\n"
@@ -420,7 +424,7 @@ def modo_automatico():
             shared_memory_data=shared_memory.to_dict(),
             historial_resumen=resumen_historial
         )
-        mcp_valido = mostrar_transferencia_mcp(payload)
+        mcp_valido = mostrar_transferencia_mcp(payload, verbose=True)
 
         # Transición en el Grafo
         agente_anterior = active_agent.name
@@ -493,7 +497,7 @@ def modo_automatico():
         agente=sales_agent.name
     )
 
-    # Reporte de Metricas
+    # Reporte de Metricas final para evaluación
     metrics_tracker.imprimir_reporte(MODELO)
 
 
@@ -504,8 +508,8 @@ def main():
     print("       VELTRI TECNOLOGIC - Sistema Multiagente Swarm + MCP")
     print("=" * 65)
     print("  Selecciona un modo de ejecucion:\n")
-    print("    [1] Modo Interactivo  - Chatea en vivo con los agentes")
-    print("    [2] Modo Automatico   - Ejecutar pruebas predefinidas")
+    print("    [1] Modo Chat Comercial - Conversar amablemente con el asesor")
+    print("    [2] Modo Evaluacion     - Correr los logs técnicos de la rúbrica")
     print("")
 
     try:
