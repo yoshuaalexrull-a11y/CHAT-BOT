@@ -86,24 +86,28 @@ st.markdown("""
 
 /* ── Input de chat ───────────────────────────────────────────── */
 [data-testid="stChatInput"] {
+    background-color: var(--bg-card) !important;
     border: 1px solid #4b5563 !important;
     border-radius: 12px !important;
 }
 [data-testid="stChatInput"] textarea {
-    background: var(--bg-input) !important;
+    background: transparent !important;
     border: none !important;
     border-radius: 12px !important;
     color: var(--text-primary) !important;
     font-family: 'Inter', sans-serif !important;
     width: 100% !important;
 }
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #9ca3af !important;
+}
 [data-testid="stChatInput"] textarea:focus {
     border: none !important;
     outline: none !important;
 }
 [data-testid="stChatInput"]:focus-within {
-    border-color: #9ca3af !important;
-    box-shadow: 0 0 12px rgba(156, 163, 175, 0.3) !important;
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.3) !important;
 }
 
 
