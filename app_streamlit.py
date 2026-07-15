@@ -75,6 +75,9 @@ st.markdown("""
 [data-testid="stChatMessage"]:hover {
     box-shadow: 0 0 20px var(--glow);
 }
+[data-testid="stChatMessage"] * {
+    color: var(--text-primary) !important;
+}
 
 /* ── Burbuja del usuario ─────────────────────────────────────── */
 [data-testid="stChatMessage"][data-testid*="user"] {
