@@ -85,25 +85,28 @@ st.markdown("""
 }
 
 /* ── Input de chat ───────────────────────────────────────────── */
-[data-testid="stChatInput"] {
+[data-testid="stChatInput"], [data-testid="stChatInput"] > div {
     background-color: var(--bg-card) !important;
-    border: 1px solid #4b5563 !important;
     border-radius: 12px !important;
 }
-[data-testid="stChatInput"] textarea {
+[data-testid="stChatInput"] {
+    border: 1px solid #4b5563 !important;
+}
+[data-testid="stChatInput"] textarea, [data-testid="stChatInput"] textarea:focus, [data-testid="stChatInput"] textarea:active {
     background: transparent !important;
+    background-color: transparent !important;
     border: none !important;
     border-radius: 12px !important;
     color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
     font-family: 'Inter', sans-serif !important;
     width: 100% !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
     color: #9ca3af !important;
-}
-[data-testid="stChatInput"] textarea:focus {
-    border: none !important;
-    outline: none !important;
+    -webkit-text-fill-color: #9ca3af !important;
 }
 [data-testid="stChatInput"]:focus-within {
     border-color: #a855f7 !important;
