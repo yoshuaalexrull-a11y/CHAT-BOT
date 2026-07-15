@@ -13,7 +13,7 @@ from typing import Optional
 # Configuración de modelo
 # ─────────────────────────────────────────────────────────────────────────────
 
-MODELO: str = 'gemini-1.5-flash'
+MODELO: str = 'gemini-2.5-flash'
 """Modelo de LLM utilizado para todas las llamadas."""
 
 # ─────────────────────────────────────────────────────────────────────────────
